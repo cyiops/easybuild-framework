@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,13 +25,13 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import glob
@@ -93,8 +93,10 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'extra_modules',
         'filter_deps',
         'hide_deps',
+        'hide_toolchains',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
@@ -102,6 +104,7 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_target_branch',
         'pr_target_repo',
         'github_user',
+        'github_org',
         'group',
         'ignore_dirs',
         'job_backend_config',
@@ -112,6 +115,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_target_resource',
         'modules_footer',
         'modules_header',
+        'mpi_cmd_template',
         'only_blocks',
         'optarch',
         'parallel',
@@ -122,11 +126,13 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
+        'zip_logs',
     ],
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
+        'debug_lmod',
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
@@ -134,6 +140,7 @@ BUILD_OPTIONS_CMDLINE = {
         'force',
         'group_writable_installdir',
         'hidden',
+        'install_latest_eb_release',
         'minimal_toolchains',
         'module_only',
         'package',
@@ -146,12 +153,15 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_ccache',
+        'use_f90cache',
         'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'mpi_tests',
     ],
     'warn': [
         'strict',
@@ -317,7 +327,12 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.dep_graph, cmdline_options.dry_run, cmdline_options.dry_run_short,
+        if cmdline_options.new_pr or cmdline_options.update_pr:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
+            retain_all_deps = True
+
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
+                                      cmdline_options.dry_run, cmdline_options.dry_run_short,
                                       cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
         if any(auto_ignore_osdeps_options):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
@@ -503,11 +518,11 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
 
-    @param name: software name ('%(name)s')
-    @param version: software version ('%(version)s')
-    @param add_salt: add salt (5 random characters)
-    @param date: string representation of date to use ('%(date)s')
-    @param timestamp: timestamp to use ('%(time)s')
+    :param name: software name ('%(name)s')
+    :param version: software version ('%(version)s')
+    :param add_salt: add salt (5 random characters)
+    :param date: string representation of date to use ('%(date)s')
+    :param timestamp: timestamp to use ('%(time)s')
     """
     if date is None:
         date = time.strftime("%Y%m%d")
@@ -541,8 +556,8 @@ def find_last_log(curlog):
     """
     Find location to last log file that is still available.
 
-    @param curlog: location to log file of current session
-    @return: path to last log file (or None if no log files were found)
+    :param curlog: location to log file of current session
+    :return: path to last log file (or None if no log files were found)
     """
     variables = ConfigurationVariables()
     log_dir = get_build_log_path()
